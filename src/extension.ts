@@ -74,21 +74,11 @@ export class PatternDefinitionProvider implements vscode.DefinitionProvider, vsc
     position: vscode.Position,
     token: vscode.CancellationToken
   ) {
-      const line = document.lineAt(position.line);
       const range = document.getWordRangeAtPosition(position, /[\w\d-]+/);
       if (!range) {
         return null;
       }
-
       const word = document.getText(range);
-
-      // const filePath = join(getRoot().fsPath, word + ".tree");
-      // const definitionUri = vscode.Uri.file(filePath);
-      // let range_begin = new vscode.Position(0, 0);
-      // let range_end = new vscode.Position(0, 0);
-      // let position_range = new vscode.Range(range_begin, range_end);
-
-      // return new vscode.Location(definitionUri, position_range);
 
       const root = getRoot();
       // If we cancel, we kill the process
@@ -113,20 +103,60 @@ export class PatternDefinitionProvider implements vscode.DefinitionProvider, vsc
         killswitch.dispose();
         return null;
       }
-      // for (const [id, { sourcePath }] of Object.entries(await cachedQuery)) {
-      //   if(line.text.includes(id)) {
-      //     const filePath = sourcePath;
-      //     const definitionUri = vscode.Uri.file(filePath);
-      //     let range_begin = new vscode.Position(0, 0);
-      //     let range_end = new vscode.Position(0, 0);
-      //     let position_range = new vscode.Range(range_begin, range_end);
-  
-      //     return new vscode.Location(definitionUri, position_range);
-      //   }
-      // }
-      killswitch.dispose();
+  }
 
-      return  null;
+  dispose() {
+    // Clean up
+  }
+}
+
+export class PatternHoverProvider implements vscode.HoverProvider, vscode.Disposable {
+  constructor() { }
+
+  async provideHover(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    token: vscode.CancellationToken
+  ) {
+      const range = document.getWordRangeAtPosition(position, /[\w\d-]+/);
+      if (!range) {
+        return null;
+      }
+      const word = document.getText(range);
+
+      const root = getRoot();
+      // If we cancel, we kill the process
+      update();
+      let killswitch = token.onCancellationRequested(() => {
+        dirty = true;
+        cancel?.cancel();
+      });
+      const cq = await cachedQuery;
+      if(word in cq) {
+        const { title, taxon, tags, route, metas } = cq[word];
+        let contents = [];
+        if (taxon !== null) {
+          contents.push(`_${taxon}._`);
+        }
+
+        if (title !== null) {
+          contents.push(title);
+        }
+        // if (tags.length > 0) {
+        //   contents.push(`Tags: ${tags.join(", ")}`);
+        // }
+        // if (route !== "") {
+        //   contents.push(`Route: ${route}`);
+        // }
+        // for (const [key, value] of Object.entries(metas)) {
+        //   contents.push(`${key}: ${value}`);
+        // }
+        killswitch.dispose();
+        return new vscode.Hover(contents.join(" "));
+      } else {
+        killswitch.dispose();
+        return null;
+      }
   }
 
   dispose() {
@@ -153,6 +183,7 @@ export function activate(context: vscode.ExtensionContext) {
     watcher,
     logChannel,
     vscode.languages.registerDefinitionProvider(selector, provider),
+    vscode.languages.registerHoverProvider(selector, new PatternHoverProvider()),
     vscode.languages.registerCompletionItemProvider(
       selector,
       {
