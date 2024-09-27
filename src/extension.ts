@@ -66,28 +66,132 @@ async function suggest(range: vscode.Range) {
   return results;
 }
 
+export class PatternDefinitionProvider implements vscode.DefinitionProvider, vscode.Disposable {
+  constructor() { }
+
+  async provideDefinition(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    token: vscode.CancellationToken
+  ) {
+    
+
+    // console.debug('forester', document);
+    // console.debug('forester', position);
+    // return new vscode.Location(vscode.Uri.parse(''), position);
+    // const filePath = `/Users/utensil/projects/forest/trees/tt-0001.tree`; // Adjust as needed
+    // const definitionUri = vscode.Uri.file(filePath);
+    // let range_begin = new vscode.Position(0, 0);
+    // let range_end = new vscode.Position(0, 0);
+    // let position_range = new vscode.Range(range_begin, range_end);
+
+    // return new vscode.Location(definitionUri, position_range);
+
+    // return new Promise((resolve) => {
+      const line = document.lineAt(position.line);
+      const range = document.getWordRangeAtPosition(position, /[\w\d-]+/);
+
+      // Logic to find the corresponding file for `word`
+      // For example, you might map the word to a file path
+      const root = getRoot();
+      // If we cancel, we kill the process
+      update();
+      let killswitch = token.onCancellationRequested(() => {
+        dirty = true;
+        cancel?.cancel();
+      });
+      for (const [id, { sourcePath }] of Object.entries(await cachedQuery)) {
+        if(line.text.includes(id)) {
+          const filePath = sourcePath; // join(root.fsPath, `trees/tt-0001.tree`); // Adjust as needed
+          const definitionUri = vscode.Uri.file(filePath);
+          let range_begin = new vscode.Position(0, 0);
+          let range_end = new vscode.Position(0, 0);
+          let position_range = new vscode.Range(range_begin, range_end);
+  
+          return new vscode.Location(definitionUri, position_range);
+          
+          // const filePath = sourcePath; // join(root.fsPath, `trees/${id}.tree`); // Adjust as needed
+        }
+      }
+      killswitch.dispose();
+
+      return  null;
+
+      if (!range) {
+        console.log("No range");
+        const filePath = join(root.fsPath, `trees/uts-0001.tree`); // Adjust as needed
+        const definitionUri = vscode.Uri.file(filePath);
+        let range_begin = new vscode.Position(0, 0);
+        let range_end = new vscode.Position(0, 0);
+        let position_range = new vscode.Range(range_begin, range_end);
+
+        return new vscode.Location(definitionUri, position_range);
+      }
+
+      console.log(line);
+
+      // const word = document.getText(range);
+      if (!/massot2024teaching/.test(line.text)) {
+        console.log("No word");
+        const filePath = join(root.fsPath, `trees/ag-0001.tree`); // Adjust as needed
+        const definitionUri = vscode.Uri.file(filePath);
+        let range_begin = new vscode.Position(0, 0);
+        let range_end = new vscode.Position(0, 0);
+        let position_range = new vscode.Range(range_begin, range_end);
+
+        return new vscode.Location(definitionUri, position_range);
+        return null;
+      } else {
+
+        const filePath = join(root.fsPath, `trees/tt-0001.tree`); // Adjust as needed
+        const definitionUri = vscode.Uri.file(filePath);
+        let range_begin = new vscode.Position(0, 0);
+        let range_end = new vscode.Position(0, 0);
+        let position_range = new vscode.Range(range_begin, range_end);
+
+        return [new vscode.Location(definitionUri, position_range), new vscode.Location(definitionUri, position_range)];
+      }
+    // });
+  }
+
+  dispose() {
+    // Clean up
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
+  console.log('Congratulations, your extension "forester" is now active!');
   const watcher = vscode.workspace.createFileSystemWatcher('**/*.tree');
   watcher.onDidCreate(() => { dirty = true; });
   watcher.onDidChange(() => { dirty = true; });
   watcher.onDidDelete(() => { dirty = true; });
   update();
 
+  // create a log channel
+  const logChannel = vscode.window.createOutputChannel('Forester');
+  logChannel.appendLine('Forester extension activated');
+
+  const provider = new PatternDefinitionProvider();
+  const selector: vscode.DocumentSelector = { scheme: 'file', language: 'forester' };
+
   context.subscriptions.push(
     watcher,
+    logChannel,
+    vscode.languages.registerDefinitionProvider(selector, provider),
     vscode.languages.registerCompletionItemProvider(
-      { scheme: 'file', language: 'forester' },
+      selector,
       {
         async provideCompletionItems(doc, pos, tok, _) {
           // see if we should complete
           // \transclude{, \import{, \export{, \ref, [link](, [[link
           // There are three matching groups for the replacing content
           const tagPattern =
-            /(?:\\transclude{|\\import{|\\export{|\\ref{|\\citek{)([^}]*)$|\[[^\[]*\]\(([^\)]*)$|\[\[([^\]]*)$/d;
+            /(?:\\transclude{|\\import{|\\export{|\\ref{|\\citek{)([^}]*)$|\[[^\[]*\]\(([^\)]*)$|\[\[([^\]]*)$|\\citet\{[^\}]*\}\{([^\}]*)$/d;
           const text = doc.getText(
             new vscode.Range(new vscode.Position(pos.line, 0), pos)
           );
           let match = tagPattern.exec(text);
+
           if (match === null || match.indices === undefined) {
             return [];
           }

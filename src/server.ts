@@ -10,7 +10,8 @@ export interface QueryResult {
   taxon: string | null,
   tags: string[],
   route: string,
-  metas: Map<string, string>
+  metas: Map<string, string>,
+  sourcePath: string
 }
 
 // TODO remove duplicate code
