@@ -164,6 +164,42 @@ export class PatternHoverProvider implements vscode.HoverProvider, vscode.Dispos
   }
 }
 
+// write a similar class for WorkspaceSymbolProvider
+
+export class ForesterWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
+
+  async provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Promise<vscode.SymbolInformation[]> {
+    const root = getRoot();
+    // If we cancel, we kill the process
+    update();
+    let killswitch = token.onCancellationRequested(() => {
+      dirty = true;
+      cancel?.cancel();
+    });
+    const cq = await cachedQuery;
+    let results: vscode.SymbolInformation[] = [];
+
+    let range_begin = new vscode.Position(0, 0);
+    let range_end = new vscode.Position(0, 0);
+    let position_range = new vscode.Range(range_begin, range_end);
+
+    killswitch.dispose();
+
+    for (const [id, { title, taxon }] of Object.entries(cq)) {
+      if (id.includes(query) || title?.includes(query) || taxon?.includes(query)) {
+        results.push(new vscode.SymbolInformation(
+          title ?? id,
+          vscode.SymbolKind.Class,
+          id,
+          new vscode.Location(vscode.Uri.file(cq[id].sourcePath), position_range)
+        ));
+      }
+    }
+    killswitch.dispose();
+    return results;
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   console.log('Congratulations, your extension "forester" is now active!');
   const watcher = vscode.workspace.createFileSystemWatcher('**/*.tree');
@@ -184,6 +220,7 @@ export function activate(context: vscode.ExtensionContext) {
     logChannel,
     vscode.languages.registerDefinitionProvider(selector, provider),
     vscode.languages.registerHoverProvider(selector, new PatternHoverProvider()),
+    vscode.languages.registerWorkspaceSymbolProvider(new ForesterWorkspaceSymbolProvider()),
     vscode.languages.registerCompletionItemProvider(
       selector,
       {
