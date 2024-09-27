@@ -83,7 +83,7 @@ export function activate(context: vscode.ExtensionContext) {
           // \transclude{, \import{, \export{, \ref, [link](, [[link
           // There are three matching groups for the replacing content
           const tagPattern =
-            /(?:\\transclude{|\\import{|\\export{|\\ref{)([^}]*)$|\[[^\[]*\]\(([^\)]*)$|\[\[([^\]]*)$/d;
+            /(?:\\transclude{|\\import{|\\export{|\\ref{|\\citek{)([^}]*)$|\[[^\[]*\]\(([^\)]*)$|\[\[([^\]]*)$/d;
           const text = doc.getText(
             new vscode.Range(new vscode.Position(pos.line, 0), pos)
           );
