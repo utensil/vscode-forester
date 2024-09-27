@@ -74,25 +74,22 @@ export class PatternDefinitionProvider implements vscode.DefinitionProvider, vsc
     position: vscode.Position,
     token: vscode.CancellationToken
   ) {
-    
-
-    // console.debug('forester', document);
-    // console.debug('forester', position);
-    // return new vscode.Location(vscode.Uri.parse(''), position);
-    // const filePath = `/Users/utensil/projects/forest/trees/tt-0001.tree`; // Adjust as needed
-    // const definitionUri = vscode.Uri.file(filePath);
-    // let range_begin = new vscode.Position(0, 0);
-    // let range_end = new vscode.Position(0, 0);
-    // let position_range = new vscode.Range(range_begin, range_end);
-
-    // return new vscode.Location(definitionUri, position_range);
-
-    // return new Promise((resolve) => {
       const line = document.lineAt(position.line);
       const range = document.getWordRangeAtPosition(position, /[\w\d-]+/);
+      if (!range) {
+        return null;
+      }
 
-      // Logic to find the corresponding file for `word`
-      // For example, you might map the word to a file path
+      const word = document.getText(range);
+
+      // const filePath = join(getRoot().fsPath, word + ".tree");
+      // const definitionUri = vscode.Uri.file(filePath);
+      // let range_begin = new vscode.Position(0, 0);
+      // let range_end = new vscode.Position(0, 0);
+      // let position_range = new vscode.Range(range_begin, range_end);
+
+      // return new vscode.Location(definitionUri, position_range);
+
       const root = getRoot();
       // If we cancel, we kill the process
       update();
@@ -100,58 +97,36 @@ export class PatternDefinitionProvider implements vscode.DefinitionProvider, vsc
         dirty = true;
         cancel?.cancel();
       });
-      for (const [id, { sourcePath }] of Object.entries(await cachedQuery)) {
-        if(line.text.includes(id)) {
-          const filePath = sourcePath; // join(root.fsPath, `trees/tt-0001.tree`); // Adjust as needed
-          const definitionUri = vscode.Uri.file(filePath);
-          let range_begin = new vscode.Position(0, 0);
-          let range_end = new vscode.Position(0, 0);
-          let position_range = new vscode.Range(range_begin, range_end);
-  
-          return new vscode.Location(definitionUri, position_range);
-          
-          // const filePath = sourcePath; // join(root.fsPath, `trees/${id}.tree`); // Adjust as needed
-        }
+      const cq = await cachedQuery;
+      if(word in cq) {
+        const { sourcePath } = cq[word];
+        const filePath = sourcePath;
+        const definitionUri = vscode.Uri.file(filePath);
+        let range_begin = new vscode.Position(0, 0);
+        let range_end = new vscode.Position(0, 0);
+        let position_range = new vscode.Range(range_begin, range_end);
+
+        killswitch.dispose();
+
+        return new vscode.Location(definitionUri, position_range);
+      } else {
+        killswitch.dispose();
+        return null;
       }
+      // for (const [id, { sourcePath }] of Object.entries(await cachedQuery)) {
+      //   if(line.text.includes(id)) {
+      //     const filePath = sourcePath;
+      //     const definitionUri = vscode.Uri.file(filePath);
+      //     let range_begin = new vscode.Position(0, 0);
+      //     let range_end = new vscode.Position(0, 0);
+      //     let position_range = new vscode.Range(range_begin, range_end);
+  
+      //     return new vscode.Location(definitionUri, position_range);
+      //   }
+      // }
       killswitch.dispose();
 
       return  null;
-
-      if (!range) {
-        console.log("No range");
-        const filePath = join(root.fsPath, `trees/uts-0001.tree`); // Adjust as needed
-        const definitionUri = vscode.Uri.file(filePath);
-        let range_begin = new vscode.Position(0, 0);
-        let range_end = new vscode.Position(0, 0);
-        let position_range = new vscode.Range(range_begin, range_end);
-
-        return new vscode.Location(definitionUri, position_range);
-      }
-
-      console.log(line);
-
-      // const word = document.getText(range);
-      if (!/massot2024teaching/.test(line.text)) {
-        console.log("No word");
-        const filePath = join(root.fsPath, `trees/ag-0001.tree`); // Adjust as needed
-        const definitionUri = vscode.Uri.file(filePath);
-        let range_begin = new vscode.Position(0, 0);
-        let range_end = new vscode.Position(0, 0);
-        let position_range = new vscode.Range(range_begin, range_end);
-
-        return new vscode.Location(definitionUri, position_range);
-        return null;
-      } else {
-
-        const filePath = join(root.fsPath, `trees/tt-0001.tree`); // Adjust as needed
-        const definitionUri = vscode.Uri.file(filePath);
-        let range_begin = new vscode.Position(0, 0);
-        let range_end = new vscode.Position(0, 0);
-        let position_range = new vscode.Range(range_begin, range_end);
-
-        return [new vscode.Location(definitionUri, position_range), new vscode.Location(definitionUri, position_range)];
-      }
-    // });
   }
 
   dispose() {
