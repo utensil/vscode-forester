@@ -66,7 +66,7 @@ async function suggest(range: vscode.Range) {
   return results;
 }
 
-export class PatternDefinitionProvider implements vscode.DefinitionProvider, vscode.Disposable {
+export class ForesterDefinitionProvider implements vscode.DefinitionProvider, vscode.Disposable {
   constructor() { }
 
   async provideDefinition(
@@ -110,7 +110,7 @@ export class PatternDefinitionProvider implements vscode.DefinitionProvider, vsc
   }
 }
 
-export class PatternHoverProvider implements vscode.HoverProvider, vscode.Disposable {
+export class ForesterHoverProvider implements vscode.HoverProvider, vscode.Disposable {
   constructor() { }
 
   async provideHover(
@@ -164,8 +164,6 @@ export class PatternHoverProvider implements vscode.HoverProvider, vscode.Dispos
   }
 }
 
-// write a similar class for WorkspaceSymbolProvider
-
 export class ForesterWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
 
   async provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): Promise<vscode.SymbolInformation[]> {
@@ -185,8 +183,14 @@ export class ForesterWorkspaceSymbolProvider implements vscode.WorkspaceSymbolPr
 
     killswitch.dispose();
 
+    const fuzzyquery = query.toLowerCase();
+
     for (const [id, { title, taxon }] of Object.entries(cq)) {
-      if (id.includes(query) || title?.includes(query) || taxon?.includes(query)) {
+      const fuzzyid = id.toLowerCase();
+      const fuzzytitle = title?.toLowerCase();
+      const fuzzytaxon = taxon?.toLowerCase();
+
+      if (fuzzyid.includes(fuzzyquery) || fuzzytitle?.includes(fuzzyquery) || fuzzytaxon?.includes(fuzzyquery)) {
         results.push(new vscode.SymbolInformation(
           title ?? id,
           vscode.SymbolKind.Class,
@@ -201,25 +205,18 @@ export class ForesterWorkspaceSymbolProvider implements vscode.WorkspaceSymbolPr
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log('Congratulations, your extension "forester" is now active!');
   const watcher = vscode.workspace.createFileSystemWatcher('**/*.tree');
   watcher.onDidCreate(() => { dirty = true; });
   watcher.onDidChange(() => { dirty = true; });
   watcher.onDidDelete(() => { dirty = true; });
   update();
 
-  // create a log channel
-  const logChannel = vscode.window.createOutputChannel('Forester');
-  logChannel.appendLine('Forester extension activated');
-
-  const provider = new PatternDefinitionProvider();
   const selector: vscode.DocumentSelector = { scheme: 'file', language: 'forester' };
 
   context.subscriptions.push(
     watcher,
-    logChannel,
-    vscode.languages.registerDefinitionProvider(selector, provider),
-    vscode.languages.registerHoverProvider(selector, new PatternHoverProvider()),
+    vscode.languages.registerDefinitionProvider(selector, new ForesterDefinitionProvider()),
+    vscode.languages.registerHoverProvider(selector, new ForesterHoverProvider()),
     vscode.languages.registerWorkspaceSymbolProvider(new ForesterWorkspaceSymbolProvider()),
     vscode.languages.registerCompletionItemProvider(
       selector,
